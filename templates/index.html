@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocalysis AI - Voice Analysis</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- three.js for 3D graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0c0a1e;
+            color: #e0e0e0;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        #three-canvas {
+            position: fixed; /* Changed to fixed */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        .content-container {
+            position: relative;
+            z-index: 1;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn-upload {
+            background: linear-gradient(90deg, #4f46e5, #c026d3);
+            transition: all 0.3s ease;
+        }
+        .btn-upload:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3), 0 6px 6px rgba(192, 38, 211, 0.3);
+        }
+        .loader {
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-left-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error-message {
+            background-color: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            color: #ffcccc;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- 3D Background Canvas -->
+    <canvas id="three-canvas"></canvas>
+
+    <!-- Main Content Container -->
+    <div class="content-container w-full max-w-4xl mx-auto text-center p-4 sm:p-8">
+        
+        <!-- Header -->
+        <header class="my-8">
+            <h1 class="text-5xl md:text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                Vocalysis AI
+            </h1>
+            <p class="text-lg text-indigo-200 mt-2">
+                Analyze multiple audio files at once.
+            </p>
+        </header>
+
+        <!-- Upload Area -->
+        <main id="main-content" class="glass-panel rounded-2xl p-8 shadow-2xl mb-8">
+            <h2 class="text-2xl font-bold mb-4">Upload Your Audio Files</h2>
+            <p class="mb-6 text-gray-300">Select one or more .wav or .mp3 files to begin.</p>
+            <label for="audio-upload" class="btn-upload cursor-pointer text-white font-bold py-3 px-8 rounded-full inline-block shadow-lg">
+                Choose Files
+            </label>
+            <!-- IMPORTANT: Added 'multiple' attribute to allow bulk upload -->
+            <input type="file" id="audio-upload" class="hidden" accept=".wav,.mp3,.m4a" multiple>
+        </main>
+
+        <!-- Results Area -->
+        <div id="results-area" class="w-full space-y-4">
+            <!-- Results will be dynamically inserted here -->
+        </div>
+
+    </div>
+
+    <script>
+        // --- 3D Scene Setup (Identical to previous version) ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-canvas'), alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        scene.add(new THREE.AmbientLight(0x6055a6, 1));
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 7.5);
+        scene.add(directionalLight);
+        const micGroup = new THREE.Group();
+        const micMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+        const micBody = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2, 32), micMaterial);
+        const micHead = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), micMaterial);
+        micHead.position.y = 1.25;
+        micGroup.add(micBody, micHead);
+        scene.add(micGroup);
+        const particles = [];
+        const particleMaterial = new THREE.MeshStandardMaterial({ color: 0x818cf8, emissive: 0x4f46e5 });
+        for (let i = 0; i < 50; i++) {
+            const particle = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), particleMaterial);
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 3 + Math.random() * 3;
+            const y = (Math.random() - 0.5) * 6;
+            particle.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+            particle.userData.angle = angle;
+            particle.userData.radius = radius;
+            particle.userData.speed = 0.005 + Math.random() * 0.01;
+            particles.push(particle);
+            scene.add(particle);
+        }
+        camera.position.z = 6;
+        function animate() {
+            requestAnimationFrame(animate);
+            micGroup.rotation.y += 0.005;
+            micGroup.rotation.x = Math.sin(Date.now() * 0.0005) * 0.1;
+            particles.forEach(p => {
+                p.userData.angle += p.userData.speed;
+                p.position.x = Math.cos(p.userData.angle) * p.userData.radius;
+                p.position.z = Math.sin(p.userData.angle) * p.userData.radius;
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- Frontend Interaction Logic ---
+        const fileInput = document.getElementById('audio-upload');
+        const resultsArea = document.getElementById('results-area');
+
+        // Function to create a result card template
+        const createResultCard = (fileId, fileName) => {
+            return `
+                <div id="card-${fileId}" class="glass-panel rounded-2xl p-6 text-left transition-all duration-500">
+                    <h3 class="text-lg font-bold truncate mb-4">${fileName}</h3>
+                    <div id="loader-${fileId}" class="flex items-center space-x-3 text-indigo-300">
+                        <div class="loader w-6 h-6 rounded-full"></div>
+                        <span>Analyzing...</span>
+                    </div>
+                    <div id="results-${fileId}" class="hidden">
+                        <!-- Results will be populated here -->
+                    </div>
+                    <div id="error-${fileId}" class="hidden error-message p-4 rounded-lg">
+                        <!-- Error message will be populated here -->
+                    </div>
+                </div>
+            `;
+        };
+
+        // Function to populate a card with results
+        const populateResults = (fileId, results) => {
+            const proScore = results['Professionalism Score'];
+            const proValue = typeof proScore === 'number' ? `${proScore.toFixed(1)} / 10` : 'N/A';
+
+            const resultsHTML = `
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div><p class="text-sm text-gray-300">Clarity</p><p class="text-2xl font-bold text-green-400">${results['Clarity Score'].toFixed(1)}</p></div>
+                    <div><p class="text-sm text-gray-300">Confidence</p><p class="text-2xl font-bold text-blue-400">${results['Confidence Score'].toFixed(1)}</p></div>
+                    <div><p class="text-sm text-gray-300">Energy</p><p class="text-2xl font-bold text-yellow-400">${results['Energy & Engagement Score'].toFixed(1)}</p></div>
+                    <div><p class="text-sm text-gray-300">Professionalism</p><p class="text-2xl font-bold text-purple-400">${proValue}</p></div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-white/10">
+                    <p class="text-sm text-gray-400">Transcription:</p>
+                    <p class="text-sm italic">"${results['Transcription'] || 'No text transcribed.'}"</p>
+                </div>
+            `;
+            document.getElementById(`results-${fileId}`).innerHTML = resultsHTML;
+            document.getElementById(`loader-${fileId}`).classList.add('hidden');
+            document.getElementById(`results-${fileId}`).classList.remove('hidden');
+        };
+
+        // Function to show an error in a card
+        const populateError = (fileId, errorMsg) => {
+            document.getElementById(`error-${fileId}`).innerHTML = `<p><strong>Analysis Failed:</strong> ${errorMsg}</p>`;
+            document.getElementById(`loader-${fileId}`).classList.add('hidden');
+            document.getElementById(`error-${fileId}`).classList.remove('hidden');
+        };
+
+        // Main event listener for file uploads
+        fileInput.addEventListener('change', async (event) => {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            resultsArea.innerHTML = ''; // Clear previous results
+
+            for (const file of files) {
+                const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                resultsArea.insertAdjacentHTML('beforeend', createResultCard(fileId, file.name));
+
+                const formData = new FormData();
+                formData.append('audio_file', file);
+
+                try {
+                    const response = await fetch('http://127.0.0.1:5000/analyze', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+                    }
+                    
+                    populateResults(fileId, data);
+
+                } catch (error) {
+                    console.error('Analysis Error for', file.name, ':', error);
+                    populateError(fileId, error.message);
+                }
+            }
+            fileInput.value = ''; // Reset file input to allow re-uploading the same files
+        });
+    </script>
+</body>
+</html>

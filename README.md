@@ -6,7 +6,6 @@ Vocalysis is a web application designed to help students and professionals impro
 
 The application features a dynamic, interactive 3D frontend and a powerful Python backend, making speech analysis simple and engaging.
 
-(Suggestion: Replace the URL above with a screenshot of your running application)
 
 Key Features:
 Comprehensive Analysis: Get scores for Confidence, Clarity, Ambition, Mood, Grammar, and Professionalism.
